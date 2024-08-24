@@ -6,12 +6,12 @@ import { getTokenOrRefresh } from '../util/token_util';
 const speechsdk = require('microsoft-cognitiveservices-speech-sdk');
 
 export default function Home() {
-  const [displayText, setDisplayText] = useState(
-    'INITIALIZED: ready to test speech...'
-  );
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [displayText, setDisplayText] = useState("");
   const [player, updatePlayer] = useState({ p: undefined, muted: false });
 
   async function sttFromMic() {
+    setIsLoading(true);
     const tokenObj = await getTokenOrRefresh();
     const speechConfig = speechsdk.SpeechConfig.fromAuthorizationToken(
       tokenObj.authToken,
@@ -27,17 +27,45 @@ export default function Home() {
 
     setDisplayText('speak into your microphone...');
 
-    recognizer.recognizeOnceAsync((result: any) => {
+    await recognizer.recognizeOnceAsync((result: any) => {
       if (result.reason === ResultReason.RecognizedSpeech) {
         setDisplayText(`RECOGNIZED: Text=${result.text}`);
+        getAzData(result.text);
       } else {
         setDisplayText(
           'ERROR: Speech was cancelled or could not be recognized. Ensure your microphone is working properly.'
         );
       }
     });
+    setIsLoading(false);
   }
-  const textToSpeech = async() => {
+
+  const getAzData = async (message: string) => {
+    setIsLoading(true);
+    try {
+      console.log('start message : ', message);
+      // const url = '/api/azopenai';
+
+      const response = await fetch(`http://localhost:3000/api/azopenai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      });
+      
+      console.log('🚀 ~ getAzData ~ response:', response);
+      const { aiMessage } = await response.json();  
+      console.log('🚀 ~ getAzData ~ res:', aiMessage);
+      // 回答を音声で読み上げ
+      // textToSpeech(aiMessage);
+    } catch (err) {
+      console.log('🚀 ~ file: index.tsx:32 ~ getAzData ~ err:', err);
+    }
+    setIsLoading(false);
+  };
+
+  const textToSpeech = async(answer: string) => {
     const tokenObj = await getTokenOrRefresh();
     const speechConfig = speechsdk.SpeechConfig.fromAuthorizationToken(
       tokenObj.authToken,
@@ -55,8 +83,7 @@ export default function Home() {
       audioConfig
     );
 
-    const textToSpeak =
-      'I am AI. How about you? I am doing great! Thank you so much. and you?';
+    const textToSpeak = answer;
     setDisplayText(`speaking text: ${textToSpeak}...`);
     synthesizer.speakTextAsync(
       textToSpeak,
@@ -84,18 +111,12 @@ export default function Home() {
   
   return (
     <div className="app-container">
-      <h1 className="display-4 mb-3">Speech sample app</h1>
-
+      <h1 className="display-4 mb-3">Speech talk with AI</h1>
       <div className="row main-container">
         <div className="col-6">
           <i className="cursor-pointer" onClick={() => sttFromMic()}>
-            💡
+            AOAIと話す
           </i>
-          <div className="mt-2">
-            <i className="cursor-pointer" onClick={() => textToSpeech()}>
-              🚀
-            </i>
-          </div>
         </div>
         <div className="col-6 output-display rounded">
           <code>{displayText}</code>

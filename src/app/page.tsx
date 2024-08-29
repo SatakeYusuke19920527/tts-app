@@ -8,6 +8,7 @@ const speechsdk = require('microsoft-cognitiveservices-speech-sdk');
 export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayText, setDisplayText] = useState("");
+  const [displayAIText, setDisplayAIText] = useState('');
   const [player, updatePlayer] = useState({ p: undefined, muted: false });
 
   async function sttFromMic() {
@@ -29,7 +30,7 @@ export default function Home() {
 
     await recognizer.recognizeOnceAsync((result: any) => {
       if (result.reason === ResultReason.RecognizedSpeech) {
-        setDisplayText(`RECOGNIZED: Text=${result.text}`);
+        setDisplayText(`You: ${result.text}`);
         getAzData(result.text);
       } else {
         setDisplayText(
@@ -53,12 +54,12 @@ export default function Home() {
         },
         body: JSON.stringify({ message }),
       });
-      
+
       console.log('🚀 ~ getAzData ~ response:', response);
-      const { aiMessage } = await response.json();  
-      console.log('🚀 ~ getAzData ~ res:', aiMessage);
+      const { aiMessage } = await response.json();
+      console.log('🚀 ~ getAzData ~ aiMessage:', aiMessage[0].message.content);
       // 回答を音声で読み上げ
-      // textToSpeech(aiMessage);
+      textToSpeech(aiMessage[0].message.content);
     } catch (err) {
       console.log('🚀 ~ file: index.tsx:32 ~ getAzData ~ err:', err);
     }
@@ -84,7 +85,8 @@ export default function Home() {
     );
 
     const textToSpeak = answer;
-    setDisplayText(`speaking text: ${textToSpeak}...`);
+    // setDisplayText();
+    setDisplayAIText(`AI : ${textToSpeak}`);
     synthesizer.speakTextAsync(
       textToSpeak,
       (result: any) => {
@@ -92,16 +94,16 @@ export default function Home() {
         if (
           result.reason === speechsdk.ResultReason.SynthesizingAudioCompleted
         ) {
-          text = `synthesis finished for "${textToSpeak}".\n`;
+          text = `${textToSpeak} .\n`;
         } else if (result.reason === speechsdk.ResultReason.Canceled) {
           text = `synthesis failed. Error detail: ${result.errorDetails}.\n`;
         }
         synthesizer.close();
         synthesizer = undefined;
-        setDisplayText(text!);
+        setDisplayAIText("AI : " + text!);
       },
       function (err: any) {
-        setDisplayText(`Error: ${err}.\n`);
+        setDisplayAIText(`Error: ${err}.\n`);
 
         synthesizer.close();
         synthesizer = undefined;
@@ -110,17 +112,30 @@ export default function Home() {
   }
   
   return (
-    <div className="app-container">
-      <h1 className="display-4 mb-3">Speech talk with AI</h1>
+    <div className="app-container p-4">
+      <h1 className="display-4 mb-5 text-4xl">Speech talk with AI</h1>
       <div className="row main-container">
         <div className="col-6">
-          <i className="cursor-pointer" onClick={() => sttFromMic()}>
-            AOAIと話す
-          </i>
+          <button
+            type="button"
+            onClick={() => sttFromMic()}
+            className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+          >
+            talk to AI
+          </button>
         </div>
-        <div className="col-6 output-display rounded">
-          <code>{displayText}</code>
+        <hr className="my-5" />
+        <div className="p-4 col-6 output-display rounded">
+          <div className="mb-5 text-gray-500">{displayText}</div>
+          <div className="mb-5 text-gray-500">{displayAIText}</div>
         </div>
+        {isLoading ? (
+          <div className="flex justify-center" aria-label="読み込み中">
+            <div className="animate-spin h-8 w-8 bg-blue-300 rounded-xl"></div>
+          </div>
+        ) : (
+          <></>
+        )}
       </div>
     </div>
   );
